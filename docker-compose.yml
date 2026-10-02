@@ -1,0 +1,12 @@
+services:
+  catalog-service:
+    build:
+      context: ./services/catalog-service
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; r = urllib.request.urlopen('http://localhost:8000/health', timeout=2); assert r.status == 200"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 3

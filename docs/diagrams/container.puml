@@ -1,4 +1,57 @@
 @startuml
-title Marketplace — заготовка C4 Container
-' Полная C4 Container диаграмма будет добавлена отдельным шагом.
+!include <C4/C4_Container>
+
+LAYOUT_TOP_DOWN()
+
+Person(buyer, "Buyer", "Покупатель: просматривает товары и оформляет заказы")
+Person(seller, "Seller", "Продавец: управляет своими товарами")
+System_Ext(provider, "Payment Provider", "Внешний платежный провайдер")
+
+System_Boundary(marketplace, "Marketplace") {
+    Container(gateway, "API Gateway", "HTTP reverse proxy", "Единая точка входа для клиентов")
+    Container(users, "User Service", "Python / FastAPI", "Покупатели, продавцы и их профили")
+    Container(catalog, "Catalog Service", "Python / FastAPI", "Товары, карточки, категории, цены и принадлежность продавцу")
+    Container(feed, "Feed Service", "Python / FastAPI", "Персонализированная лента и ранжирование товаров")
+    Container(orders, "Order Service", "Python / FastAPI", "Создание заказов, позиции, итоговая сумма и статусы")
+    Container(payments, "Payment Service", "Python / FastAPI", "Создание и учет платежей, работа с Payment Provider")
+    Container(notifications, "Notification Service", "Python", "Отправка уведомлений о статусах заказа")
+    Container(broker, "Message Broker", "Kafka", "Асинхронный обмен событиями между сервисами")
+
+    ContainerDb(userDb, "User DB", "PostgreSQL", "Пользователи, роли и профили")
+    ContainerDb(catalogDb, "Catalog DB", "PostgreSQL", "Карточки, категории, цены, идентификаторы продавцов")
+    ContainerDb(feedDb, "Feed DB", "PostgreSQL", "Просмотры, предпочтения, популярность и данные для ранжирования")
+    ContainerDb(orderDb, "Order DB", "PostgreSQL", "Заказы, позиции, суммы и история статусов")
+    ContainerDb(paymentDb, "Payment DB", "PostgreSQL", "Платежи, суммы, статусы и идентификаторы провайдера")
+    ContainerDb(notificationDb, "Notification DB", "PostgreSQL", "Уведомления, получатели и результаты отправки")
+}
+
+Rel_D(buyer, gateway, "Просмотр ленты и товаров, профиль, заказы", "HTTPS")
+Rel_D(seller, gateway, "Управление профилем и товарами", "HTTPS")
+Rel_D(gateway, users, "Управление пользователями", "HTTP/REST")
+Rel_D(gateway, catalog, "Чтение и управление каталогом", "HTTP/REST")
+Rel_D(gateway, feed, "Запрос ленты и передача просмотров", "HTTP/REST")
+Rel_D(gateway, orders, "Создание и просмотр заказов", "HTTP/REST")
+Rel_D(orders, payments, "Создание платежа для заказа", "HTTP/REST")
+Rel_R(payments, provider, "Создание платежа и проверка результата", "HTTPS")
+Rel_U(feed, catalog, "Получение актуальных данных о товарах", "HTTP/REST")
+
+Rel_U(payments, broker, "Публикует PaymentSucceeded", "Async event / Kafka")
+Rel_U(broker, orders, "Передает PaymentSucceeded", "Async event / Kafka")
+Rel_D(orders, broker, "Публикует OrderStatusChanged", "Async event / Kafka")
+Rel_D(broker, notifications, "Передает OrderStatusChanged", "Async event / Kafka")
+Rel_D(catalog, broker, "Публикует ProductUpdated", "Async event / Kafka")
+Rel_D(broker, feed, "Передает ProductUpdated", "Async event / Kafka")
+
+Rel_D(users, userDb, "Чтение и запись своих данных", "SQL / PostgreSQL")
+Rel_D(catalog, catalogDb, "Чтение и запись своих данных", "SQL / PostgreSQL")
+Rel_D(feed, feedDb, "Чтение и запись своих данных", "SQL / PostgreSQL")
+Rel_D(orders, orderDb, "Чтение и запись своих данных", "SQL / PostgreSQL")
+Rel_D(payments, paymentDb, "Чтение и запись своих данных", "SQL / PostgreSQL")
+Rel_D(notifications, notificationDb, "Чтение и запись своих данных", "SQL / PostgreSQL")
+Lay_D(users, catalog)
+Lay_D(catalog, feed)
+Lay_R(catalog, orders)
+Lay_R(feed, notifications)
+Lay_D(notifications, payments)
+
 @enduml
